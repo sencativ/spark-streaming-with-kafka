@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  jupyter:
+    container_name: jupyter-notebook
+    image: jupyter/base-notebook:latest
+    environment:
+      - JUPYTER_ALLOW_INSECURE_WRITES=true
+    command: "start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''"
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+      - "4041:4041"
+    volumes:
+      - ../:/resources
+      - ../notebooks:/home/jovyan/
+    restart: always
+
+networks:
+  default:
+    name: dataeng-network
+    external: true
