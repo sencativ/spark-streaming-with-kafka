@@ -2,7 +2,7 @@ import pyspark
 import os
 from dotenv import load_dotenv
 from pathlib import Path
-from pyspark.sql.functions import from_json, col, sum, max, to_timestamp
+from pyspark.sql.functions import from_json, col, sum, max, to_timestamp, window
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType
 
 dotenv_path = Path("/opt/app/.env")
@@ -56,21 +56,23 @@ parsed_df = (
     .select("data.*")
 )
 
-# convert timestamp for better readibility purposes
+# convert timestamp for better readability purposes
 parsed_df = parsed_df.withColumn("timestamp", to_timestamp("ts"))
 
 # Adding watermark to handle late data, 10 minutes is the tolerance from timestamp
 parsed_df_with_watermark = parsed_df.withWatermark("timestamp", "10 minutes")
 
-# Aggregated df for showing sum data and time stamp group by game_title
-aggregated_df = parsed_df_with_watermark.groupBy("game_title").agg(
+# 10 minute window for aggregate
+windowed_df = parsed_df_with_watermark.groupBy(
+    window(col("timestamp"), "10 minutes")
+).agg(
     sum("price").alias("Running_total"),
-    max(col("timestamp")).alias("last_purchase_time"),
+    max(col("timestamp")).alias("Timestamp"),
 )
 
 # Writing the result to the console every 30 seconds
 query = (
-    aggregated_df.select("game_title", "Running_total", "last_purchase_time")
+    windowed_df.select("Timestamp", "Running_total")
     .writeStream.outputMode("complete")
     .format("console")
     .trigger(processingTime="30 seconds")
